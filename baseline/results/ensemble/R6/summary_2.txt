@@ -1,0 +1,4 @@
+Git commit: 38fa04b326fa791f39a6c21bc8a2b6d13add89ed
+Command: main.py --method ensemble --timepoint R6 --seed 2 --data_path C:/Users/mingq/OneDrive - Kansas State University/K-state Research/Publications/Maize Yield Prediction/Maize-Yield-GNN/dataset/stat_dataset.pkl
+TRAIN Metrics | MSE: 109.9373, MAE: 6.7503, R2: 0.8500
+TEST  Metrics | MSE: 267.1086, MAE: 13.0623, R2: 0.6903
