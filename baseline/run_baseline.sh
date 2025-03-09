@@ -1,9 +1,9 @@
 #!/bin/bash
 # Windows Aanconda
 
-# Activate your Anaconda environment
-source /d/Software/Anaconda/etc/profile.d/conda.sh
-conda activate base
+# Activate Anaconda environment (local)
+# source /d/Software/Anaconda/etc/profile.d/conda.sh
+# conda activate base
 
 
 for model in SVR RF GBR ensemble
