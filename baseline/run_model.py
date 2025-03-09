@@ -76,7 +76,7 @@ def run(args):
     random.seed(args.seed)
     np.random.seed(args.seed)
 
-    processor = DataProcessor(os.path.join(PROJECT_ROOT, args.data_path))
+    processor = DataProcessor(args.data_path)
     data_dict = processor.load_and_process(args.timepoint)
     selected_features = select_features_with_high_correlation(data_dict, threshold=args.threshold)
     
