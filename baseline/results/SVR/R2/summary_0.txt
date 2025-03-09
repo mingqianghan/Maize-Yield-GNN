@@ -1,0 +1,4 @@
+Git commit: 56a804ceaf5ec7f0aa6f25d299083f254af0f35d
+Command: main.py --method SVR --timepoint R2 --seed 0 --data_path /content/drive/MyDrive/Colab Notebooks/Maize Yield Prediction/dataset/stat_dataset.pkl
+TRAIN Metrics | MSE: 330.3783, MAE: 12.0706, R2: 0.5577
+TEST  Metrics | MSE: 265.6670, MAE: 11.9937, R2: 0.6694
