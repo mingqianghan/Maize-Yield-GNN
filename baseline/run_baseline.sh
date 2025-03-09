@@ -5,6 +5,9 @@
 # source /d/Software/Anaconda/etc/profile.d/conda.sh
 # conda activate base
 
+# Define the data path variable. (change this)
+DATA_PATH="/content/drive/MyDrive/Colab Notebooks/Maize Yield Prediction/dataset/image_dataset.pkl"
+
 
 for model in SVR RF GBR ensemble
 do
@@ -12,7 +15,7 @@ do
     do
         for seed in 0 1 2 
         do 
-            python main.py --method $model --timepoint $tp --seed $seed
+            python main.py --method $model --timepoint $tp --seed $seed --data_path "$DATA_PATH"
         done
     done
 done
