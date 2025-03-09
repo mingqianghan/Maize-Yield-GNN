@@ -1,8 +1,9 @@
 import os
+import sys
 import random
 import joblib
 import numpy as np
-from skopt import BayesSearchCV
+import subprocess
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, KBinsDiscretizer, StandardScaler
 from model import choose_base_model
@@ -10,7 +11,8 @@ from helpers.feature_preparation import DataProcessor
 from helpers.utils import (
     calculate_metrics,
     save_best_model_predictions, 
-    select_features_with_high_correlation)
+    select_features_with_high_correlation,
+    get_git_revision_hash)
   
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -60,17 +62,45 @@ def train_model(data_dict, selected_features, results_output_path, args):
     joblib.dump(model, model_path)
     
     preds_all = model.predict(X_scaled)
+    predictions_file = os.path.join(results_output_path,f'predictions_{args.seed}.csv')
     save_best_model_predictions(data_dict = data_dict, 
                                 train_idx = train_idx, 
                                 val_idx = [], 
                                 test_idx = test_idx, 
                                 best_preds_all = preds_all,
-                                filepath = os.path.join(results_output_path,f'predictions_{args.seed}.csv'))
+                                filepath = predictions_file)
     
     print("\nresults:")
     print(f"Train - MSE:{train_metrics['mse']:.4f}, MAE:{train_metrics['mae']:.4f}, R2:{train_metrics['r2']:.4f}")
     print(f"Test - MSE:{test_metrics['mse']:.4f}, MAE:{test_metrics['mae']:.4f}, R2:{test_metrics['r2']:.4f}")
+    print("\n")
     
+    git_commit = get_git_revision_hash()  
+    command_string = " ".join(sys.argv)
+    
+    summary_txt = os.path.join(results_output_path, f'summary_{args.seed}.txt')
+    with open(summary_txt, 'w') as f:
+        f.write("Git commit: " + git_commit + "\n")
+        f.write("Command: " + command_string + "\n")
+        f.write("TRAIN Metrics | MSE: {:.4f}, MAE: {:.4f}, R2: {:.4f}\n".format(train_metrics['mse'], train_metrics['mae'], train_metrics['r2']))
+        f.write("TEST  Metrics | MSE: {:.4f}, MAE: {:.4f}, R2: {:.4f}\n".format(test_metrics['mse'], test_metrics['mae'], test_metrics['r2']))
+    
+    try:
+        # List the files to commit
+        files_to_commit = [summary_txt, model_path, predictions_file]
+        subprocess.check_call(["git", "add"] + files_to_commit)
+        
+        # Create a commit message; adjust the content as needed
+        commit_message = "Record final results"
+        subprocess.check_call(["git", "commit", "-m", commit_message])
+        
+        # Push the commit to the remote repository
+        subprocess.check_call(["git", "push"])
+        print("Results committed and pushed to GitHub.")
+    except subprocess.CalledProcessError as e:
+        print("Error during Git operations:", e)
+        
+        
     
 def run(args):
     random.seed(args.seed)

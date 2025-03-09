@@ -5,9 +5,14 @@ import pandas as pd
 import torch
 import torch.nn.functional as F
 import seaborn as sns
+import subprocess
 from scipy.spatial.distance import pdist, squareform
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from scipy.stats import pearsonr
+
+def get_git_revision_hash():
+    return subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('ascii').strip()
+
 
 def haversine_distance(coord1, coord2):
     """
