@@ -1,0 +1,4 @@
+Git commit: 3a9d1c78f3c4b6a1d4f2db691189e92b8e19d066
+Command: main.py --method SVR --timepoint R3 --seed 0 --data_path C:/Users/mingq/OneDrive - Kansas State University/K-state Research/Publications/Maize Yield Prediction/Maize-Yield-GNN/dataset/stat_dataset.pkl
+TRAIN Metrics | MSE: 348.2353, MAE: 13.6787, R2: 0.5338
+TEST  Metrics | MSE: 345.0388, MAE: 12.3037, R2: 0.5706
