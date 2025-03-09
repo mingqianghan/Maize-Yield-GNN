@@ -166,9 +166,6 @@ def calculate_correlation_coefficient_all_timepoints(data, show_plot = False):
 
 def select_features_with_high_correlation(df, target='yield', threshold=0.5):
     
-    if isinstance(df, dict):
-        df = pd.DataFrame(df)
-        
     exclude_cols = ['plot_id', 'irrigation_labels', 'irrigation']
     
     # Select numeric columns and exclude specified columns

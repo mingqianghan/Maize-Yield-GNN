@@ -6,7 +6,7 @@
 # conda activate base
 
 # Define the data path variable. (change this)
-DATA_PATH="/content/drive/MyDrive/Colab Notebooks/Maize Yield Prediction/dataset/image_dataset.pkl"
+DATA_PATH="/content/drive/MyDrive/Colab Notebooks/Maize Yield Prediction/dataset/stat_dataset.pkl"
 
 
 for model in SVR RF GBR ensemble
