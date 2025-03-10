@@ -2,11 +2,12 @@
 # Windows Aanconda
 
 # Activate Anaconda environment (local)
-# source /d/Software/Anaconda/etc/profile.d/conda.sh
-# conda activate base
+source /d/Software/Anaconda/etc/profile.d/conda.sh
+conda activate base
 
 # Define the data path variable. (change this)
-DATA_PATH="/content/drive/MyDrive/Colab Notebooks/Maize Yield Prediction/dataset/stat_dataset.pkl"
+# local
+DATA_PATH="C:/Users/mingq/OneDrive - Kansas State University/K-state Research/Publications/Maize Yield Prediction/Maize-Yield-GNN/dataset/stat_dataset.pkl"
 
 
 for model in SVR RF GBR ensemble

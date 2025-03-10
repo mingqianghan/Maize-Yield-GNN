@@ -1,23 +1,19 @@
 import os
+import sys
 import torch
 import random
 import numpy as np
+import subprocess
 from sklearn.preprocessing import LabelEncoder, KBinsDiscretizer, StandardScaler
 from sklearn.model_selection import train_test_split
 from model import CNN_GNN_Model
-from helpers.feature_preparation import ImageDataProcessor
+from helpers.feature_preparation import DataProcessor
 from helpers.utils import (
     build_weighted_graph, 
     custom_loss, 
-    calcualte_metrics,
+    calculate_metrics,
+    get_git_revision_hash,
     save_best_model_predictions)
-import warnings
-warnings.filterwarnings(
-    "ignore",
-    message=r".*scatter\(reduce='max'\).*accelerated via the 'torch-scatter' package, but it was not found",
-    category=UserWarning
-)
-
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -96,7 +92,7 @@ def train_model(data_dict, weight_matrix, edge_index, edge_weights, results_outp
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=args.lr_factor, patience=args.lr_patience)
     # criterion = log_cosh_loss()
 
-    best_model_path = os.path.join(results_output_path, 'best_model.pt')
+    best_model_path = os.path.join(results_output_path, f'best_model_{args.seed}.pt')
     best_val_mse = float('inf')
     train_mse_list, val_mse_list, test_mse_list, train_r2_list, val_r2_list, test_r2_list = [], [], [], [], [], []
 
@@ -125,17 +121,17 @@ def train_model(data_dict, weight_matrix, edge_index, edge_weights, results_outp
             # train
             train_preds = model(veg_all, cwsi_all, irrigation_all, edge_index)[train_idx].cpu().numpy()
             y_train = data_dict['yield'][train_idx]
-            train_metrics = calcualte_metrics(y_train, train_preds)
+            train_metrics = calculate_metrics(y_train, train_preds)
 
             # val
             val_preds = model(veg_all, cwsi_all, irrigation_all, edge_index)[val_idx].cpu().numpy()
             y_val = data_dict['yield'][val_idx]
-            val_metrics = calcualte_metrics(y_val, val_preds)
+            val_metrics = calculate_metrics(y_val, val_preds)
 
             # test
             test_preds = model(veg_all, cwsi_all, irrigation_all, edge_index)[test_idx].cpu().numpy()
             y_test = data_dict['yield'][test_idx]
-            test_metrics = calcualte_metrics(y_test, test_preds)
+            test_metrics = calculate_metrics(y_test, test_preds)
 
             val_mse = val_metrics['mse']
 
@@ -185,12 +181,37 @@ def train_model(data_dict, weight_matrix, edge_index, edge_weights, results_outp
     with torch.no_grad():
         # Obtain predictions for all samples using the best model
         best_preds_all = model(veg_all, cwsi_all, irrigation_all, edge_index).cpu().numpy()
-
+    
+    predictions_file = os.path.join(results_output_path, f'predictions_{args.seed}.csv')
     save_best_model_predictions(data_dict, train_idx, val_idx, test_idx, 
-                                best_preds_all, 
-                                os.path.join(results_output_path,'predictions.csv'))
+                                best_preds_all, predictions_file)
+    
+    git_commit = get_git_revision_hash()  
+    command_string = " ".join(sys.argv)
+    
+    summary_txt = os.path.join(results_output_path, f'summary_{args.seed}.txt')
+    with open(summary_txt, 'w') as f:
+       f.write("Git commit: " + git_commit + "\n")
+       f.write("Command: " + command_string + "\n")
+       f.write("Best result at epoch {:d}, \n".format(best_epoch))
+       f.write("TRAIN Metrics | MSE: {:.4f}, MAE: {:.4f}, R2: {:.4f}\n".format(best_train_mse, best_train_mae, best_train_r2))
+       f.write("VAL Metrics | MSE: {:.4f}, MAE: {:.4f}, R2: {:.4f}\n".format(best_val_mse, best_val_mae, best_val_r2))
+       f.write("TEST  Metrics | MSE: {:.4f}, MAE: {:.4f}, R2: {:.4f}\n".format(best_test_mse,best_test_mae, best_test_r2))
 
-
+    try:
+        # List the files to commit
+        files_to_commit = [summary_txt, best_model_path, predictions_file]
+        subprocess.check_call(["git", "add"] + files_to_commit)
+        
+        # Create a commit message; adjust the content as needed
+        commit_message = "Record final results"
+        subprocess.check_call(["git", "commit", "-m", commit_message])
+        
+        # Push the commit to the remote repository
+        subprocess.check_call(["git", "push"])
+        print("Results committed and pushed to GitHub.\n")
+    except subprocess.CalledProcessError as e:
+        print("Error during Git operations:", e)
     #plot_metrics(train_mse_list, val_mse_list, test_mse_list, train_r2_list, val_r2_list, test_r2_list, best_epoch)
     
     
@@ -205,7 +226,7 @@ def run(args):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-    processor = ImageDataProcessor(os.path.join(PROJECT_ROOT, args.data_path))
+    processor = DataProcessor(os.path.join(PROJECT_ROOT, args.data_path))
 
     for idx, timepoint in enumerate(['R1', 'R2', 'R3', 'R4', 'R5', 'R6']):
         print(f"\nProcessing timepoint: {timepoint}")

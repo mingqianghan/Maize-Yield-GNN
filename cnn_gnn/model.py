@@ -2,12 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn.conv import SAGEConv
-import warnings
-warnings.filterwarnings(
-    "ignore",
-    message=r".*scatter\(reduce='max'\).*accelerated via the 'torch-scatter' package, but it was not found",
-    category=UserWarning
-)
 
 # ============================================
 #              Model Architecture
