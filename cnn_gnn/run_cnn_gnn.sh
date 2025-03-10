@@ -7,7 +7,7 @@ DATA_PATH="/content/drive/MyDrive/Colab Notebooks/Maize Yield Prediction/dataset
 
 #python main.py --lr 0.001 --timepoint 'R1' --data_path "$DATA_PATH"
 #python main.py --lr 0.001 --timepoint 'R2' --data_path "$DATA_PATH"
-python main.py --lr 0.01 --timepoint 'R3' --data_path "$DATA_PATH"
+python main.py --lr 0.1 --timepoint 'R3' --data_path "$DATA_PATH"
 #python main.py --lr 0.001 --timepoint 'R4' --data_path "$DATA_PATH"
 #python main.py --lr 0.001 --timepoint 'R5' --data_path "$DATA_PATH"
 #python main.py --lr 0.01 --timepoint 'R6' --data_path "$DATA_PATH"
