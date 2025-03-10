@@ -225,29 +225,23 @@ def run(args):
 
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
+    
+    print(f"\nProcessing timepoint: {args.timepoint}")
+    processor = DataProcessor(args.data_path)
+    data_dict = processor.load_and_process(args.timepoint)
 
-    processor = DataProcessor(os.path.join(PROJECT_ROOT, args.data_path))
+    sigma, weight_matrix = build_weighted_graph(
+        data_dict['coordinates'], dist_scale=args.dist_scale
+    )
+    print("Sigma:", sigma)
+    # display_weight_matrix(weight_matrix)
+    # show_connected_graph(data_dict['coordinates'], sigma)
+    edge_index = torch.from_numpy(np.vstack(weight_matrix.nonzero())).long().to(DEVICE)
+    edge_weights = torch.from_numpy(weight_matrix[weight_matrix.nonzero()]).float().to(DEVICE)
 
-    for idx, timepoint in enumerate(['R1', 'R2', 'R3', 'R4', 'R5', 'R6']):
-        print(f"\nProcessing timepoint: {timepoint}")
+    results_output_path = os.path.join(PROJECT_ROOT, args.model_type, 'results', args.timepoint)
+    if not os.path.exists(results_output_path):
+        os.makedirs(results_output_path)
 
-        # Load data once per timepoint
-        data_dict = processor.load_and_process(timepoint=timepoint)
-
-        # Only build the graph on the first iteration (R1)
-        if idx == 0:
-            sigma, weight_matrix = build_weighted_graph(
-                data_dict['coordinates'], dist_scale=args.dist_scale
-            )
-            print("Sigma:", sigma)
-            # display_weight_matrix(weight_matrix)
-            # show_connected_graph(data_dict['coordinates'], sigma)
-            edge_index = torch.from_numpy(np.vstack(weight_matrix.nonzero())).long().to(DEVICE)
-            edge_weights = torch.from_numpy(weight_matrix[weight_matrix.nonzero()]).float().to(DEVICE)
-
-        results_output_path = os.path.join(PROJECT_ROOT, args.model_type, 'results', timepoint)
-        if not os.path.exists(results_output_path):
-            os.makedirs(results_output_path)
-
-        # Run stratified KFold training
-        train_model(data_dict, weight_matrix, edge_index, edge_weights, results_output_path, args)
+    # Run stratified KFold training
+    train_model(data_dict, weight_matrix, edge_index, edge_weights, results_output_path, args)
