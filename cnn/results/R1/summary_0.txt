@@ -1,6 +1,6 @@
-Git commit: b722575da57be9f897997da7313420459a2c6912
-Command: c:\users\mingq\onedrive - kansas state university\k-state research\publications\maize yield prediction\maize-yield-gnn\cnn\main.py
-Best result at epoch 168
-TRAIN Metrics | MSE: 277.1265, MAE: 10.9000, R2: 0.6328
-VAL Metrics | MSE: 171.8573, MAE: 10.5767, R2: 0.7462
-TEST  Metrics | MSE: 279.1857, MAE: 10.9840, R2: 0.6526
+Git commit: d53a72241e81d59ecfd8fc39fe44bcda751b79d0
+Command: main.py --lr 0.001 --timepoint R1 --data_path /content/drive/MyDrive/Colab Notebooks/Maize Yield Prediction/dataset/image_dataset.pkl
+Best result at epoch 152
+TRAIN Metrics | MSE: 280.5637, MAE: 11.1231, R2: 0.6282
+VAL Metrics | MSE: 178.6045, MAE: 10.9025, R2: 0.7363
+TEST  Metrics | MSE: 289.6754, MAE: 11.1138, R2: 0.6395
