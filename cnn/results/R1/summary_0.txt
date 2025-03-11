@@ -1,0 +1,6 @@
+Git commit: b722575da57be9f897997da7313420459a2c6912
+Command: c:\users\mingq\onedrive - kansas state university\k-state research\publications\maize yield prediction\maize-yield-gnn\cnn\main.py
+Best result at epoch 168
+TRAIN Metrics | MSE: 277.1265, MAE: 10.9000, R2: 0.6328
+VAL Metrics | MSE: 171.8573, MAE: 10.5767, R2: 0.7462
+TEST  Metrics | MSE: 279.1857, MAE: 10.9840, R2: 0.6526
