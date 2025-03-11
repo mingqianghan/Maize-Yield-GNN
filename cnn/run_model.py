@@ -199,8 +199,8 @@ def train_model(data_dict, results_output_path, args):
     print(f"Train - MSE:{best_train_mse:.4f}, MAE:{best_train_mae:.4f}, R2:{best_train_r2:.4f}")
     print(f"Val - MSE:{best_val_mse:.4f}, MAE:{best_val_mae:.4f}, R2:{best_val_r2:.4f}")
     print(f"Test - MSE:{best_test_mse:.4f}, MAE:{best_test_mae:.4f}, R2:{best_test_r2:.4f}")
-
-    model.load_state_dict(torch.load(best_model_path))
+    
+    model.load_state_dict(torch.load(best_model_path, weights_only=True))
     model.eval()
     with torch.no_grad():
         preds_all = model(veg_all, cwsi_all, irrigation_all).cpu().numpy()
