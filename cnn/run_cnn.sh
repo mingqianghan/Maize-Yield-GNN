@@ -11,7 +11,7 @@ conda activate base
 
 # Define the data path variable. (change this)
 # local
-DATA_PATH="C:/Users/mingq/OneDrive - Kansas State University/K-state Research/Publications/Maize Yield Prediction/Maize-Yield-GNN/dataset/stat_dataset.pkl"
+DATA_PATH="C:/Users/mingq/OneDrive - Kansas State University/K-state Research/Publications/Maize Yield Prediction/Maize-Yield-GNN/dataset/image_dataset.pkl"
 
 
 for tp in R1 R2 R3 R4 R5 R6
