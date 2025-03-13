@@ -95,21 +95,6 @@ def train_model(data_dict, weight_matrix, edge_index, edge_weights, results_outp
 
     data_dict['cwsi'] = cwsi_scaled
 
-    # Scale cwsi: shape (N, T, 1, H, W)
-    cwsi_np = data_dict['cwsi']
-    N, T, c, h, w = cwsi_np.shape  # c should be 1
-    cwsi_np_reshaped = cwsi_np.reshape(N * T, c, h, w)
-    scaler = StandardScaler()
-    # Fit on training data
-    train_samples = []
-    for t in range(T):
-        train_samples.append(cwsi_np_reshaped[t * N + train_idx, :, :, :].reshape(len(train_idx), -1))
-    train_cwsi = np.concatenate(train_samples, axis=0)
-    scaler.fit(train_cwsi)
-    cwsi_np_scaled = scaler.transform(cwsi_np_reshaped.reshape(N * T, -1)).reshape(N * T, c, h, w)
-    cwsi_np_scaled = cwsi_np_scaled.reshape(N, T, c, h, w)
-    data_dict['cwsi'] = cwsi_np_scaled
-
     # ----------------------------------------------------------
     # Convert data to tensors.
     # ----------------------------------------------------------
