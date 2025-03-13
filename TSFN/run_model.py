@@ -63,6 +63,12 @@ def train_model(data_dict, weight_matrix, edge_index, edge_weights, results_outp
             # Use training samples for this time point and channel
             train_data = veg_np[train_idx, t, i, :, :].reshape(len(train_idx), -1)
             scaler.fit(train_data)
+            # Print debugging info for inspection.
+            print(f"Vegetation - timepoint {t}, channel {i}:")
+            print(f"   mean: {scaler.mean_}")
+            print(f"   scale: {scaler.scale_}")
+            if np.all(scaler.scale_ == 0):
+                print("   Warning: This channel is constant (scale=0)!")
             for n in range(N):
                 sample_data = veg_np[n, t, i, :, :].reshape(1, -1)
                 veg_scaled[n, t, i, :, :] = scaler.transform(sample_data).reshape(h, w)
@@ -78,6 +84,11 @@ def train_model(data_dict, weight_matrix, edge_index, edge_weights, results_outp
             scaler = StandardScaler()
             train_data = cwsi_np[train_idx, t, i, :, :].reshape(len(train_idx), -1)
             scaler.fit(train_data)
+            print(f"CWSI - timepoint {t}, channel {i}:")
+            print(f"   mean: {scaler.mean_}")
+            print(f"   scale: {scaler.scale_}")
+            if np.all(scaler.scale_ == 0):
+                print("   Warning: This channel is constant (scale=0)!")
             for n in range(N):
                 sample_data = cwsi_np[n, t, i, :, :].reshape(1, -1)
                 cwsi_scaled[n, t, i, :, :] = scaler.transform(sample_data).reshape(h, w)

@@ -21,8 +21,8 @@ class TSFN_Model(nn.Module):
         # Total: 400 + 200 + 16 = 616
         #
         # GraphSAGE layers:
-        self.sage1 = SAGEConv(616, 64, aggr='mean')
-        self.sage2 = SAGEConv(64, 32, aggr='mean')
+        self.sage1 = SAGEConv(616, 64, aggr='max')
+        self.sage2 = SAGEConv(64, 32, aggr='max')
         
         # Projection layer to reduce dimension from 32 to 32 (no change but can be used for nonlinearity)
         self.proj = nn.Linear(32, 32)
