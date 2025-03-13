@@ -8,6 +8,32 @@ class DataProcessor:
         self.file_path = file_path
         self.raw_df = None
         self.processed_data = None
+    
+    def load_and_process_all_timepoints(self, timepoints):
+        data_dict = {}
+        skip_keys = {'plot_id', 'irrigation', 'irrigation_labels', 'coordinates', 'yield'}
+        stack_keys = {'vegetation', 'cwsi'}
+        
+        for i, tp in enumerate(timepoints):
+            tp_data = self.load_and_process(tp)
+            for key, value in tp_data.items():
+                if key in skip_keys:
+                    # For constant keys, store the value only once.
+                    if key not in data_dict:
+                        data_dict[key] = value
+                    continue
+    
+                if key in stack_keys:
+                    # For the first timepoint, add a new axis.
+                    if key not in data_dict:
+                        data_dict[key] = np.expand_dims(value, axis=1)
+                    else:
+                        # For subsequent timepoints, also expand dims before concatenating.
+                        data_to_add = np.expand_dims(value, axis=1)
+                        data_dict[key] = np.concatenate((data_dict[key], data_to_add), axis=1)
+        return data_dict
+                        
+                    
 
     def load_and_process(self, timepoint):
         """Load and process data for specific timepoint"""
