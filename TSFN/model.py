@@ -3,126 +3,83 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn.conv import SAGEConv
 
-# Temporal-Spatial Fusion Network (TSFN)
 class TSFN_Model(nn.Module):
     def __init__(self):
         super().__init__()
-        # CNN feature extractors (shared across timepoints)
-        self.veg_cnn = self._create_cnn(in_channels=5, out_channels=16)
-        self.cwsi_cnn = self._create_cnn(in_channels=1, out_channels=8)
-        
-        # Irrigation is a categorical variable; embedding dimension is set to 16.
+        # CNN Feature Extractors for vegetation and CWSI
+        self.veg_cnn = self._create_cnn(in_channels=5, out_channels=16)  # Input: 5 channels, Output: 16 channels
+        self.cwsi_cnn = self._create_cnn(in_channels=1, out_channels=8)  # Input: 1 channel, Output: 8 channels
+
+        # Embedding for irrigation (static feature)
         self.irrigation_embed = nn.Embedding(num_embeddings=3, embedding_dim=16)
-        
-        # After CNN and irrigation embedding, the per–timepoint feature dimension:
-        # vegetation: 16 channels * 5 * 5 = 400
-        # cwsi: 8 channels * 5 * 5 = 200
-        # irrigation: 16
-        # Total: 400 + 200 + 16 = 616
-        #
-        # GraphSAGE layers:
-        self.sage1 = SAGEConv(616, 64, aggr='max')
+
+        # Temporal component (LSTM) for processing time-varying features
+        self.temporal = nn.LSTM(input_size=16*5*5 + 8*5*5, hidden_size=64, num_layers=2, batch_first=True)
+
+        # GraphSAGE layers
+        self.sage1 = SAGEConv(64 + 16, 64, aggr='max')  # Input: LSTM output + irrigation embedding
         self.sage2 = SAGEConv(64, 32, aggr='max')
-        
-        # Projection layer to reduce dimension from 32 to 32 (no change but can be used for nonlinearity)
-        self.proj = nn.Linear(32, 32)
-        
-        # GRU for temporal aggregation with reduced hidden size.
-        # Here, input size is 32 (from the projection) and hidden size is set to 32.
-        self.gru = nn.GRU(input_size=32, hidden_size=32, batch_first=True)
-        
-        # Optional dropout layer after GRU to reduce overfitting on a small dataset.
-        self.dropout = nn.Dropout(p=0.2)
-        
-        # Final fully connected layer mapping from GRU output to the prediction.
+
+        # Final fully connected layer: maps 32 features to the target.
         self.fc = nn.Linear(32, 1)
-    
+
     def _create_cnn(self, in_channels, out_channels):
         return nn.Sequential(
-            nn.Conv2d(in_channels, 16, kernel_size=3, padding=1),
+            nn.Conv2d(in_channels, 16, 3, padding=1),
             nn.BatchNorm2d(16),
             nn.ReLU(),
             nn.MaxPool2d(2),
-            nn.Conv2d(16, out_channels, kernel_size=3, padding=1),
+            nn.Conv2d(16, out_channels, 3, padding=1),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(),
-            nn.AdaptiveAvgPool2d((5, 5))
+            nn.AdaptiveAvgPool2d((5, 5))  # Output size: (5, 5)
         )
-    
+
     def forward(self, veg, cwsi, irrigation, edge_index):
-        """
-        Inputs:
-          veg: Tensor of shape (N, T, 5, H, W)         -- vegetation images
-          cwsi: Tensor of shape (N, T, 1, H, W)        -- CWSI images
-          irrigation: Tensor of shape (N, T)           -- categorical irrigation data per timepoint
-          edge_index: Graph connectivity information for the N nodes.
-          
-        Process:
-          1. For each timepoint t, extract features using CNNs and irrigation embedding.
-          2. Process the concatenated features with GraphSAGE layers (per timepoint).
-          3. Stack the per–timepoint GNN outputs to form a temporal sequence.
-          4. Use an LSTM to aggregate temporal information.
-          5. Produce the final prediction.
-        """
-        N, T = veg.shape[0], veg.shape[1]
-        gnn_embeddings_list = []
-        '''
-        # Process each timepoint separately.
-        for t in range(T):
-            # Extract data for timepoint t.
-            veg_t = veg[:, t, :, :, :]           # (N, 5, H, W)
-            cwsi_t = cwsi[:, t, :, :, :]           # (N, 1, H, W)
-            irr_t = irrigation[:, t]               # (N,)
-            
-            # CNN feature extraction.
-            veg_feat = self.veg_cnn(veg_t).view(N, -1)    # (N, 400)
-            cwsi_feat = self.cwsi_cnn(cwsi_t).view(N, -1)   # (N, 200)
-            irr_feat = self.irrigation_embed(irr_t)         # (N, 16)
-            
-            # Concatenate the features.
-            features = torch.cat([veg_feat, cwsi_feat, irr_feat], dim=1)  # (N, 616)
-            
-            # Apply GraphSAGE layers to incorporate spatial information.
-            x = F.relu(self.sage1(features, edge_index))  # (N, 64)
-            x = F.relu(self.sage2(x, edge_index))           # (N, 32)
-            gnn_embeddings_list.append(x)
-        '''
-            
-        for t in range(T):
-            # Extract data for timepoint t.
-            veg_t = veg[:, t, :, :, :]           # Expected shape: (N, 5, H, W)
-            cwsi_t = cwsi[:, t, :, :, :]           # Expected shape: (N, 1, H, W)
-            irr_t = irrigation[:, t].squeeze(-1)   # Squeeze to ensure shape: (N,)
-            
-            # CNN feature extraction.
-            veg_feat = self.veg_cnn(veg_t).view(N, -1)    # (N, 400)
-            cwsi_feat = self.cwsi_cnn(cwsi_t).view(N, -1)   # (N, 200)
-            irr_feat = self.irrigation_embed(irr_t)         # (N, 16)
-        
-            # Concatenate the features.
-            features = torch.cat([veg_feat, cwsi_feat, irr_feat], dim=1)  # (N, 616)
-            
-            # Apply GraphSAGE layers to incorporate spatial information.
-            x = F.relu(self.sage1(features, edge_index))  # (N, 64)
-            x = F.relu(self.sage2(x, edge_index))           # (N, 32)
-            gnn_embeddings_list.append(x)
-        
-        # Stack the GNN embeddings across time: (N, T, 32)
-        gnn_time_embeddings = torch.stack(gnn_embeddings_list, dim=1)
-        
-        # Project features with a nonlinear transformation: (N, T, 32)
-        proj_features = F.relu(self.proj(gnn_time_embeddings))
-        
-        # Use GRU to aggregate the temporal dynamics.
-        gru_out, h_n = self.gru(proj_features)  # gru_out: (N, T, 32)
-        # Take the output from the last time step.
-        temporal_embedding = gru_out[:, -1, :]  # (N, 32)
-        
-        # Optionally apply dropout.
-        temporal_embedding = self.dropout(temporal_embedding)
-        
-        # Final prediction.
-        output = self.fc(temporal_embedding)
-        return output
+        # veg shape: (batch_size, num_timepoints, channels, height, width)
+        # cwsi shape: (batch_size, num_timepoints, channels, height, width)
+        # irrigation shape: (batch_size, 1)
 
+        batch_size, num_timepoints, veg_channels, veg_height, veg_width = veg.shape
+        _, _, cwsi_channels, cwsi_height, cwsi_width = cwsi.shape
 
+        # Process vegetation and CWSI for each time point
+        veg_features = []
+        cwsi_features = []
+        for t in range(num_timepoints):
+            # Extract vegetation and CWSI for the current time point
+            veg_t = veg[:, t, :, :, :]  # Shape: (batch_size, channels, height, width)
+            cwsi_t = cwsi[:, t, :, :, :]  # Shape: (batch_size, channels, height, width)
+
+            # Pass through CNNs
+            veg_features_t = self.veg_cnn(veg_t).flatten(1)  # Shape: (batch_size, 16*5*5)
+            cwsi_features_t = self.cwsi_cnn(cwsi_t).flatten(1)  # Shape: (batch_size, 8*5*5)
+
+            # Append to lists
+            veg_features.append(veg_features_t)
+            cwsi_features.append(cwsi_features_t)
+
+        # Stack features across time points
+        veg_features = torch.stack(veg_features, dim=1)  # Shape: (batch_size, num_timepoints, 16*5*5)
+        cwsi_features = torch.stack(cwsi_features, dim=1)  # Shape: (batch_size, num_timepoints, 8*5*5)
+
+        # Combine vegetation and CWSI features
+        combined_features = torch.cat([veg_features, cwsi_features], dim=2)  # Shape: (batch_size, num_timepoints, 16*5*5 + 8*5*5)
+
+        # Temporal processing with LSTM
+        temporal_out, _ = self.temporal(combined_features)  # Shape: (batch_size, num_timepoints, 64)
+        temporal_out = temporal_out[:, -1, :]  # Use the last time step's output (batch_size, 64)
+
+        # Embed irrigation (static feature)
+        irrigation = irrigation.squeeze().long()  # Ensure irrigation is a 1D tensor of indices
+        irrigation_features = self.irrigation_embed(irrigation)  # Shape: (batch_size, 16)
+
+        # Combine temporal output with irrigation features
+        combined = torch.cat([temporal_out, irrigation_features], dim=1)  # Shape: (batch_size, 64 + 16)
+
+        # GraphSAGE layers process the combined features.
+        x1 = F.relu(self.sage1(combined, edge_index))  # Output: (batch_size, 64)
+        x_final = F.relu(self.sage2(x1, edge_index))          # Output: (batch_size, 32)
+
+        # Final prediction
+        return self.fc(x_final)  # Output: (batch_size, 1)

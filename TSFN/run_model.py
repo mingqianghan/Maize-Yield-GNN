@@ -6,6 +6,7 @@ import numpy as np
 import subprocess
 from sklearn.preprocessing import LabelEncoder, KBinsDiscretizer, StandardScaler
 from sklearn.model_selection import train_test_split 
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from model import TSFN_Model
 from helpers.feature_preparation import DataProcessor
 from helpers.utils import (
@@ -48,52 +49,31 @@ def train_model(data_dict, weight_matrix, edge_index, edge_weights, results_outp
         random_state=args.seed
     )
 
-    # ----------------------------------------------------------
-    # Scale the image-like features using training data only.
-    # For time-series data, we reshape to (N*T, channels, H, W) and then scale.
-    # ----------------------------------------------------------
-    # Scale vegetation: shape (N, T, 5, H, W)
+   # Scale the image-like features using training data only
     veg_np = data_dict['vegetation']
-    N, T, c, h, w = veg_np.shape
+    n, t, c, h, w = veg_np.shape  # n: samples, t: timepoints, c: channels, h: height, w: width
     veg_scaled = np.empty_like(veg_np)
-    
-    for t in range(T):
-        for i in range(c):
-            scaler = StandardScaler()
-            # Use training samples for this time point and channel
-            train_data = veg_np[train_idx, t, i, :, :].reshape(len(train_idx), -1)
-            scaler.fit(train_data)
-            # Print debugging info for inspection.
-            print(f"Vegetation - timepoint {t}, channel {i}:")
-            print(f"   mean: {scaler.mean_}")
-            print(f"   scale: {scaler.scale_}")
-            if np.all(scaler.scale_ == 0):
-                print("   Warning: This channel is constant (scale=0)!")
-            for n in range(N):
-                sample_data = veg_np[n, t, i, :, :].reshape(1, -1)
-                veg_scaled[n, t, i, :, :] = scaler.transform(sample_data).reshape(h, w)
-                
+
+    for i in range(c):
+        scaler = StandardScaler()
+        # Fit scaler on the training subset for this channel
+        train_channel_data = veg_np[train_idx, :, i, :, :].reshape(len(train_idx) * t, -1)
+        scaler.fit(train_channel_data)
+        # Transform the entire channel using the training parameters
+        channel_data = veg_np[:, :, i, :, :].reshape(n * t, -1)
+        channel_data_scaled = scaler.transform(channel_data)
+        veg_scaled[:, :, i, :, :] = channel_data_scaled.reshape(n, t, h, w)
     data_dict['vegetation'] = veg_scaled
 
-    cwsi_np = data_dict['cwsi']  # shape: (N, T, 1, H, W)
-    N, T, c, h, w = cwsi_np.shape  # c should be 1
-    cwsi_scaled = np.empty_like(cwsi_np)
-
-    for t in range(T):
-        for i in range(c):
-            scaler = StandardScaler()
-            train_data = cwsi_np[train_idx, t, i, :, :].reshape(len(train_idx), -1)
-            scaler.fit(train_data)
-            print(f"CWSI - timepoint {t}, channel {i}:")
-            print(f"   mean: {scaler.mean_}")
-            print(f"   scale: {scaler.scale_}")
-            if np.all(scaler.scale_ == 0):
-                print("   Warning: This channel is constant (scale=0)!")
-            for n in range(N):
-                sample_data = cwsi_np[n, t, i, :, :].reshape(1, -1)
-                cwsi_scaled[n, t, i, :, :] = scaler.transform(sample_data).reshape(h, w)
-
-    data_dict['cwsi'] = cwsi_scaled
+    # Scale CWSI: shape (n_samples, timepoints, 1, H, W)
+    cwsi_np = data_dict['cwsi']
+    n, t, c, h, w = cwsi_np.shape  # c should be 1
+    scaler = StandardScaler()
+    # Fit on the training data
+    train_cwsi = cwsi_np[train_idx].reshape(len(train_idx) * t, -1)
+    scaler.fit(train_cwsi)
+    cwsi_np_scaled = scaler.transform(cwsi_np.reshape(n * t, -1)).reshape(n, t, c, h, w)
+    data_dict['cwsi'] = cwsi_np_scaled
 
     # ----------------------------------------------------------
     # Convert data to tensors.
@@ -234,57 +214,29 @@ def run(args):
         torch.cuda.manual_seed_all(args.seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
-    
-    print("\nProcessing multi-timepoint data")
+
+    timepoints = ["R1", "R2", "R3"]
     processor = DataProcessor(args.data_path)
+    data_dict = processor.load_and_process_all_timepoints(timepoints)
     
-    # Load the first timepoint to obtain target and coordinates (assumed common across timepoints).
-    data_first = processor.load_and_process("R1")
-    yield_data = data_first['yield']           # shape: (N,)
-    coordinates = data_first['coordinates']      # shape: (N, 2) or similar.
-    irrigation_labels = data_first.get('irrigation_labels', None)
+    for key, value in data_dict.items():
+        if isinstance(value, (np.ndarray, torch.Tensor)):  # Check if the value is a NumPy array or PyTorch tensor
+            print(f"{key}: shape = {value.shape}")
+        else:
+            print(f"{key}: type = {type(value)}")
     
-    # Initialize lists to accumulate per–timepoint data.
-    vegetation_list = []
-    cwsi_list = []
-    irrigation_list = []
-    
-    # Loop over each timepoint and load the corresponding data.
-    for tp in ["R1", "R2", "R3", "R4", "R5", "R6"]:
-        print(f"Loading data for timepoint: {tp}")
-        data_tp = processor.load_and_process(tp)
-        vegetation_list.append(data_tp['vegetation'])     # Expected shape: (N, 5, H, W)
-        cwsi_list.append(data_tp['cwsi'])                 # Expected shape: (N, 1, H, W)
-        irrigation_list.append(data_tp['irrigation'])     # Expected shape: (N,)
-    
-    # Stack the per–timepoint arrays to add a time dimension.
-    # Final shapes:
-    #   vegetation: (N, T, 5, H, W)
-    #   cwsi:       (N, T, 1, H, W)
-    #   irrigation: (N, T)
-    vegetation_all = np.stack(vegetation_list, axis=1)
-    cwsi_all = np.stack(cwsi_list, axis=1)
-    irrigation_all = np.stack(irrigation_list, axis=1)
-    
-    # Build the multi-timepoint data dictionary.
-    multi_data_dict = {
-        'vegetation': vegetation_all,
-        'cwsi': cwsi_all,
-        'irrigation': irrigation_all,
-        'yield': yield_data,
-        'coordinates': coordinates,
-        'irrigation_labels': irrigation_labels
-    }
-    
-    # Build the spatial graph using the coordinates.
-    sigma, weight_matrix = build_weighted_graph(coordinates, dist_scale=args.dist_scale)
+    sigma, weight_matrix = build_weighted_graph(
+        data_dict['coordinates'], dist_scale=args.dist_scale
+    )
     print("Sigma:", sigma)
     edge_index = torch.from_numpy(np.vstack(weight_matrix.nonzero())).long().to(DEVICE)
     edge_weights = torch.from_numpy(weight_matrix[weight_matrix.nonzero()]).float().to(DEVICE)
     
-    # Create the output folder for results.
-    results_output_path = os.path.join(PROJECT_ROOT, args.model_type, 'results', "multi_timepoints")
+    results_output_path = os.path.join(PROJECT_ROOT, args.model_type, 'results', '_'.join(timepoints))
     if not os.path.exists(results_output_path):
         os.makedirs(results_output_path)
+
+    # Run stratified KFold training
+    train_model(data_dict, weight_matrix, edge_index, edge_weights, results_output_path, args)
+
     
-    train_model(multi_data_dict, weight_matrix, edge_index, edge_weights, results_output_path, args)
