@@ -215,7 +215,7 @@ def run(args):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-    timepoints = ["R1", "R2", "R3"]
+    timepoints = ["R1", "R2", "R3", "R4", "R5", "R6"]
     processor = DataProcessor(args.data_path)
     data_dict = processor.load_and_process_all_timepoints(timepoints)
     
