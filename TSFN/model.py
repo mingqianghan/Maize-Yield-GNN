@@ -24,12 +24,21 @@ class TSFN_Model(nn.Module):
         self.sage1 = SAGEConv(616, 64, aggr='max')
         self.sage2 = SAGEConv(64, 32, aggr='max')
         
-        # LSTM for temporal aggregation:
-        # Input dimension is 32 (from GNN output) and hidden size is set to 64.
-        self.lstm = nn.LSTM(input_size=32, hidden_size=16, batch_first=True)
+        # Projection layer to prepare features for the GRU.
+        self.proj = nn.Linear(32, 64)
         
-        # Final fully connected layer mapping from LSTM output to the prediction.
-        self.fc = nn.Linear(16, 1)
+        # Projection layer to reduce dimension from 32 to 32 (no change but can be used for nonlinearity)
+        self.proj = nn.Linear(32, 32)
+        
+        # GRU for temporal aggregation with reduced hidden size.
+        # Here, input size is 32 (from the projection) and hidden size is set to 32.
+        self.gru = nn.GRU(input_size=32, hidden_size=32, batch_first=True)
+        
+        # Optional dropout layer after GRU to reduce overfitting on a small dataset.
+        self.dropout = nn.Dropout(p=0.2)
+        
+        # Final fully connected layer mapping from GRU output to the prediction.
+        self.fc = nn.Linear(32, 1)
     
     def _create_cnn(self, in_channels, out_channels):
         return nn.Sequential(
@@ -104,11 +113,16 @@ class TSFN_Model(nn.Module):
         # Stack the GNN embeddings across time: (N, T, 32)
         gnn_time_embeddings = torch.stack(gnn_embeddings_list, dim=1)
         
-        # Use LSTM to aggregate the temporal dynamics.
-        # lstm_out: (N, T, 64), h_n: (num_layers, N, 64)
-        lstm_out, (h_n, _) = self.lstm(gnn_time_embeddings)
+        # Project features with a nonlinear transformation: (N, T, 32)
+        proj_features = F.relu(self.proj(gnn_time_embeddings))
+        
+        # Use GRU to aggregate the temporal dynamics.
+        gru_out, h_n = self.gru(proj_features)  # gru_out: (N, T, 32)
         # Take the output from the last time step.
-        temporal_embedding = lstm_out[:, -1, :]  # (N, 64)
+        temporal_embedding = gru_out[:, -1, :]  # (N, 32)
+        
+        # Optionally apply dropout.
+        temporal_embedding = self.dropout(temporal_embedding)
         
         # Final prediction.
         output = self.fc(temporal_embedding)
