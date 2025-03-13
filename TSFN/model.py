@@ -26,10 +26,10 @@ class TSFN_Model(nn.Module):
         
         # LSTM for temporal aggregation:
         # Input dimension is 32 (from GNN output) and hidden size is set to 64.
-        self.lstm = nn.LSTM(input_size=32, hidden_size=64, batch_first=True)
+        self.lstm = nn.LSTM(input_size=32, hidden_size=16, batch_first=True)
         
         # Final fully connected layer mapping from LSTM output to the prediction.
-        self.fc = nn.Linear(64, 1)
+        self.fc = nn.Linear(16, 1)
     
     def _create_cnn(self, in_channels, out_channels):
         return nn.Sequential(
