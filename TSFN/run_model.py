@@ -234,7 +234,7 @@ def run(args):
     processor = DataProcessor(args.data_path)
     
     # Load the first timepoint to obtain target and coordinates (assumed common across timepoints).
-    data_first = processor.load_and_process('R1')
+    data_first = processor.load_and_process("R1")
     yield_data = data_first['yield']           # shape: (N,)
     coordinates = data_first['coordinates']      # shape: (N, 2) or similar.
     irrigation_labels = data_first.get('irrigation_labels', None)
@@ -245,7 +245,7 @@ def run(args):
     irrigation_list = []
     
     # Loop over each timepoint and load the corresponding data.
-    for tp in ['R1', 'R2', 'R3', 'R4', 'R5', 'R6']:
+    for tp in ["R1", "R2", "R3", "R4", "R5", "R6"]:
         print(f"Loading data for timepoint: {tp}")
         data_tp = processor.load_and_process(tp)
         vegetation_list.append(data_tp['vegetation'])     # Expected shape: (N, 5, H, W)
