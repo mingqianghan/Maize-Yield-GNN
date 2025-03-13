@@ -219,12 +219,6 @@ def run(args):
     processor = DataProcessor(args.data_path)
     data_dict = processor.load_and_process_all_timepoints(timepoints)
     
-    for key, value in data_dict.items():
-        if isinstance(value, (np.ndarray, torch.Tensor)):  # Check if the value is a NumPy array or PyTorch tensor
-            print(f"{key}: shape = {value.shape}")
-        else:
-            print(f"{key}: type = {type(value)}")
-    
     sigma, weight_matrix = build_weighted_graph(
         data_dict['coordinates'], dist_scale=args.dist_scale
     )
