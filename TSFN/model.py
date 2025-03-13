@@ -24,9 +24,6 @@ class TSFN_Model(nn.Module):
         self.sage1 = SAGEConv(616, 64, aggr='max')
         self.sage2 = SAGEConv(64, 32, aggr='max')
         
-        # Projection layer to prepare features for the GRU.
-        self.proj = nn.Linear(32, 64)
-        
         # Projection layer to reduce dimension from 32 to 32 (no change but can be used for nonlinearity)
         self.proj = nn.Linear(32, 32)
         

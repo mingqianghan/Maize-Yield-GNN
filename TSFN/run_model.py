@@ -55,25 +55,34 @@ def train_model(data_dict, weight_matrix, edge_index, edge_weights, results_outp
     # Scale vegetation: shape (N, T, 5, H, W)
     veg_np = data_dict['vegetation']
     N, T, c, h, w = veg_np.shape
-    veg_np_reshaped = veg_np.reshape(N * T, c, h, w)
-    veg_scaled = np.empty_like(veg_np_reshaped)
-    for i in range(c):
-        scaler = StandardScaler()
-        # Use training samples only; we need to select all timepoints for training indices.
-        # Compute indices for training timepoints:
-        train_samples = []
-        for t in range(T):
-            # offset = t * N; then add train_idx.
-            train_samples.append(veg_np_reshaped[t * N + train_idx, i, :, :].reshape(len(train_idx), -1))
-        train_channel_data = np.concatenate(train_samples, axis=0)
-        scaler.fit(train_channel_data)
-        # Transform all data for channel i.
-        for j in range(veg_np_reshaped.shape[0]):
-            channel_data = veg_np_reshaped[j, i, :, :].reshape(1, -1)
-            veg_scaled[j, i, :, :] = scaler.transform(channel_data).reshape(h, w)
-    # Reshape back to (N, T, 5, H, W)
-    veg_scaled = veg_scaled.reshape(N, T, c, h, w)
+    veg_scaled = np.empty_like(veg_np)
+    
+    for t in range(T):
+        for i in range(c):
+            scaler = StandardScaler()
+            # Use training samples for this time point and channel
+            train_data = veg_np[train_idx, t, i, :, :].reshape(len(train_idx), -1)
+            scaler.fit(train_data)
+            for n in range(N):
+                sample_data = veg_np[n, t, i, :, :].reshape(1, -1)
+                veg_scaled[n, t, i, :, :] = scaler.transform(sample_data).reshape(h, w)
+                
     data_dict['vegetation'] = veg_scaled
+
+    cwsi_np = data_dict['cwsi']  # shape: (N, T, 1, H, W)
+    N, T, c, h, w = cwsi_np.shape  # c should be 1
+    cwsi_scaled = np.empty_like(cwsi_np)
+
+    for t in range(T):
+        for i in range(c):
+            scaler = StandardScaler()
+            train_data = cwsi_np[train_idx, t, i, :, :].reshape(len(train_idx), -1)
+            scaler.fit(train_data)
+            for n in range(N):
+                sample_data = cwsi_np[n, t, i, :, :].reshape(1, -1)
+                cwsi_scaled[n, t, i, :, :] = scaler.transform(sample_data).reshape(h, w)
+
+    data_dict['cwsi'] = cwsi_scaled
 
     # Scale cwsi: shape (N, T, 1, H, W)
     cwsi_np = data_dict['cwsi']
