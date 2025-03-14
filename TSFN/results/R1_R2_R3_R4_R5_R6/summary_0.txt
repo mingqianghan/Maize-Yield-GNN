@@ -1,6 +1,6 @@
-Git commit: badbe6c1f7f16b8e2abd20c00eda723c07920f8c
-Command: main.py --lr 0.0001 --timepoints R1 R2 R3 R4 R5 R6 --data_path /content/drive/MyDrive/Colab Notebooks/Maize Yield Prediction/dataset/image_dataset.pkl
-Best result at epoch 467, 
-TRAIN Metrics | MSE: 762.3268, MAE: 21.1503, R2: -0.0102
-VAL   Metrics | MSE: 630.2838, MAE: 20.6054, R2: 0.0693
-TEST  Metrics | MSE: 787.5318, MAE: 21.6493, R2: 0.0200
+Git commit: d9a699fddfd6713efb4ae41034602da524e0d166
+Command: main.py --lr 0.001 --timepoints R1 R2 R3 R4 R5 R6 --data_path /content/drive/MyDrive/Colab Notebooks/Maize Yield Prediction/dataset/image_dataset.pkl
+Best result at epoch 351, 
+TRAIN Metrics | MSE: 192.3364, MAE: 8.5110, R2: 0.7451
+VAL   Metrics | MSE: 114.3613, MAE: 8.0386, R2: 0.8311
+TEST  Metrics | MSE: 166.0687, MAE: 9.5588, R2: 0.7933
