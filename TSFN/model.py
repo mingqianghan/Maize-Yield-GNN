@@ -14,8 +14,10 @@ class TSFN_Model(nn.Module):
         self.irrigation_embed = nn.Embedding(num_embeddings=3, embedding_dim=16)
 
         # Temporal component (LSTM) for processing time-varying features
-        self.temporal = nn.LSTM(input_size=16*5*5 + 8*5*5, hidden_size=64, num_layers=2, batch_first=True)
-
+        # self.temporal = nn.LSTM(input_size=16*5*5 + 8*5*5, hidden_size=64, num_layers=2, batch_first=True)
+        # Temporal component (GRU) for processing time-varying features
+        self.gru = nn.GRU(input_size=16*5*5 + 8*5*5, hidden_size=64, num_layers=2, batch_first=True)
+        
         # GraphSAGE layers
         self.sage1 = SAGEConv(64 + 16, 64, aggr='max')  # Input: LSTM output + irrigation embedding
         self.sage2 = SAGEConv(64, 32, aggr='max')
@@ -66,9 +68,9 @@ class TSFN_Model(nn.Module):
         # Combine vegetation and CWSI features
         combined_features = torch.cat([veg_features, cwsi_features], dim=2)  # Shape: (batch_size, num_timepoints, 16*5*5 + 8*5*5)
 
-        # Temporal processing with LSTM
-        temporal_out, _ = self.temporal(combined_features)  # Shape: (batch_size, num_timepoints, 64)
-        temporal_out = temporal_out[:, -1, :]  # Use the last time step's output (batch_size, 64)
+        # Temporal processing with GRU
+        gru_out, _ = self.gru(combined_features)  # Shape: (batch_size, num_timepoints, 64)
+        temporal_out = gru_out[:, -1, :]  # Use the last time step's output (batch_size, 64)
 
         # Embed irrigation (static feature)
         irrigation = irrigation.squeeze().long()  # Ensure irrigation is a 1D tensor of indices
