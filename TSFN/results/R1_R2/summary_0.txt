@@ -1,6 +1,0 @@
-Git commit: 4707081672ff8b1549207fc78bfeb397d92849e4
-Command: main.py --lr 0.001 --timepoints R1 R2 --data_path /content/drive/MyDrive/Colab Notebooks/Maize Yield Prediction/dataset/image_dataset.pkl
-Best result at epoch 168, 
-TRAIN Metrics | MSE: 233.1703, MAE: 9.7962, R2: 0.6910
-VAL   Metrics | MSE: 182.3867, MAE: 10.4201, R2: 0.7307
-TEST  Metrics | MSE: 255.2467, MAE: 10.4845, R2: 0.6824
