@@ -215,9 +215,8 @@ def run(args):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-    timepoints = ["R1", "R2", "R3", "R4", "R5", "R6"]
     processor = DataProcessor(args.data_path)
-    data_dict = processor.load_and_process_all_timepoints(timepoints)
+    data_dict = processor.load_and_process_all_timepoints(args.timepoints)
     
     sigma, weight_matrix = build_weighted_graph(
         data_dict['coordinates'], dist_scale=args.dist_scale
@@ -226,7 +225,7 @@ def run(args):
     edge_index = torch.from_numpy(np.vstack(weight_matrix.nonzero())).long().to(DEVICE)
     edge_weights = torch.from_numpy(weight_matrix[weight_matrix.nonzero()]).float().to(DEVICE)
     
-    results_output_path = os.path.join(PROJECT_ROOT, args.model_type, 'results', '_'.join(timepoints))
+    results_output_path = os.path.join(PROJECT_ROOT, args.model_type, 'results', '_'.join(args.timepoints))
     if not os.path.exists(results_output_path):
         os.makedirs(results_output_path)
 
