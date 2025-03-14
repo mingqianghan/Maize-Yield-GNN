@@ -28,11 +28,9 @@ class TSFN_Model(nn.Module):
     def _create_cnn(self, in_channels, out_channels):
         return nn.Sequential(
             nn.Conv2d(in_channels, 16, 3, padding=1),
-            nn.BatchNorm2d(16),
             nn.ReLU(),
             nn.MaxPool2d(2),
             nn.Conv2d(16, out_channels, 3, padding=1),
-            nn.BatchNorm2d(out_channels),
             nn.ReLU(),
             nn.AdaptiveAvgPool2d((5, 5))  # Output size: (5, 5)
         )
