@@ -182,7 +182,7 @@ def train_model(data_dict, weight_matrix, edge_index, edge_weights, results_outp
     model.load_state_dict(torch.load(best_model_path, map_location=DEVICE))
     model.eval()
     with torch.no_grad():
-        best_preds_all = model(veg_all, cwsi_all, irrigation_all, edge_index).squeeze().cpu().numpy()
+        best_preds_all = model(veg_all, cwsi_all, irrigation_all, edge_index, weather_all).squeeze().cpu().numpy()
 
     predictions_file = os.path.join(results_output_path, f'predictions_{args.seed}.csv')
     save_best_model_predictions(data_dict, train_idx, val_idx, test_idx, best_preds_all, predictions_file)
