@@ -16,7 +16,7 @@ class TSFN_Model(nn.Module):
         # Temporal component (LSTM) for processing time-varying features
         # self.temporal = nn.LSTM(input_size=16*5*5 + 8*5*5, hidden_size=64, num_layers=2, batch_first=True)
         # Temporal component (GRU) for processing time-varying features
-        self.gru = nn.GRU(input_size=16*5*5 + 8*5*5, hidden_size=64, num_layers=1, batch_first=True)
+        self.gru = nn.GRU(input_size=16*5*5 + 8*5*5, hidden_size=64, num_layers=2, batch_first=True)
         
         # GraphSAGE layers
         self.sage1 = SAGEConv(64 + 16, 64, aggr='max')  # Input: LSTM output + irrigation embedding
