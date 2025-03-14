@@ -8,7 +8,7 @@ from run_model import run
 parser = argparse.ArgumentParser()
 parser.add_argument("--model_type", type=str, default="TSFN", help="Model type to use")
 parser.add_argument("--data_path", type=str, default="C:/Users/mingq/OneDrive - Kansas State University/K-state Research/Publications/Maize Yield Prediction/Maize-Yield-GNN/dataset/image_dataset.pkl", help="Path to the data file")
-parser.add_argument("--timepoints", type=str, default=["R1", "R2"], help="Data collection time point used in LSTM model:R1, R2, R3, R4, R5, R6")
+parser.add_argument("--timepoints", type=str, nargs="+", default=["R1", "R2"], help="Data collection time points used in the LSTM model: R1, R2, R3, R4, R5, R6")
 parser.add_argument("--seed", type=int, default=0, help="Random seed for reproducibility")
 parser.add_argument("--test_size", type=float, default=0.2, help="Test set size (fraction)")
 parser.add_argument("--val_size", type=float, default=0.1, help="Validation set size (fraction)")
