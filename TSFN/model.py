@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn.conv import SAGEConv
 
-'''
+
 class TSFN_Model(nn.Module):
     def __init__(self):
         super().__init__()
@@ -84,8 +84,8 @@ class TSFN_Model(nn.Module):
 
         # Final prediction
         return self.fc(x_final)  # Output: (batch_size, 1)
-'''
 
+'''
 class TSFN_Model(nn.Module):
     def __init__(self):
         super().__init__()
@@ -169,3 +169,4 @@ class TSFN_Model(nn.Module):
 
         # Final prediction
         return self.fc(x_final)  # (batch_size, 1)
+'''

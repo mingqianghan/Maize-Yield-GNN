@@ -81,7 +81,7 @@ def train_model(data_dict, weight_matrix, edge_index, edge_weights, results_outp
     veg_all = torch.tensor(data_dict['vegetation'], dtype=torch.float32).to(DEVICE)   # (N, T, 5, H, W)
     cwsi_all = torch.tensor(data_dict['cwsi'], dtype=torch.float32).to(DEVICE)         # (N, T, 1, H, W)
     irrigation_all = torch.tensor(data_dict['irrigation'], dtype=torch.long).to(DEVICE)  # (N, 1)
-    weather_all = torch.tensor(data_dict['weather'], dtype=torch.float32).to(DEVICE)     # (N, T, F)
+    #weather_all = torch.tensor(data_dict['weather'], dtype=torch.float32).to(DEVICE)     # (N, T, F)
     y_all = torch.tensor(data_dict['yield'], dtype=torch.float32).to(DEVICE)           # (N,)
 
     # ----------------------------------------------------------
@@ -105,7 +105,7 @@ def train_model(data_dict, weight_matrix, edge_index, edge_weights, results_outp
         optimizer.zero_grad()
 
         # Forward pass: model expects full time-series input.
-        preds_all = model(veg_all, cwsi_all, irrigation_all, edge_index, weather_all)  # Output: (N, 1)
+        preds_all = model(veg_all, cwsi_all, irrigation_all, edge_index)  # Output: (N, 1)
         preds_all = preds_all.squeeze()  # (N,)
 
         # Compute losses on train and validation splits.
@@ -118,7 +118,7 @@ def train_model(data_dict, weight_matrix, edge_index, edge_weights, results_outp
         # Evaluation on train, val, and test splits.
         model.eval()
         with torch.no_grad():
-            preds_all_eval = model(veg_all, cwsi_all, irrigation_all, edge_index, weather_all).squeeze()
+            preds_all_eval = model(veg_all, cwsi_all, irrigation_all, edge_index).squeeze()
             
             # Compute validation loss using the same custom_loss (in eval mode)
             val_loss = custom_loss(preds_all_eval[val_idx], y_all[val_idx], args.loss_method)
@@ -182,7 +182,7 @@ def train_model(data_dict, weight_matrix, edge_index, edge_weights, results_outp
     model.load_state_dict(torch.load(best_model_path, map_location=DEVICE))
     model.eval()
     with torch.no_grad():
-        best_preds_all = model(veg_all, cwsi_all, irrigation_all, edge_index, weather_all).squeeze().cpu().numpy()
+        best_preds_all = model(veg_all, cwsi_all, irrigation_all, edge_index).squeeze().cpu().numpy()
 
     predictions_file = os.path.join(results_output_path, f'predictions_{args.seed}.csv')
     save_best_model_predictions(data_dict, train_idx, val_idx, test_idx, best_preds_all, predictions_file)
