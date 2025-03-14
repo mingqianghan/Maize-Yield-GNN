@@ -1,15 +1,20 @@
+import os
 import torch
 import pickle
 import numpy as np
-from sklearn.preprocessing import OrdinalEncoder
+import pandas as pd
+from sklearn.preprocessing import OrdinalEncoder, StandardScaler
 
 class DataProcessor:
     def __init__(self, file_path):
         self.file_path = file_path
         self.raw_df = None
         self.processed_data = None
+        self.weather_scaler = StandardScaler()
+        self.used_timepoints = None  # Track timepoints used in processing
     
     def load_and_process_all_timepoints(self, timepoints):
+        self.used_timepoints = timepoints 
         data_dict = {}
         skip_keys = {'plot_id', 'irrigation', 'irrigation_labels', 'coordinates', 'yield'}
         stack_keys = {'vegetation', 'cwsi'}
@@ -31,8 +36,32 @@ class DataProcessor:
                         # For subsequent timepoints, also expand dims before concatenating.
                         data_to_add = np.expand_dims(value, axis=1)
                         data_dict[key] = np.concatenate((data_dict[key], data_to_add), axis=1)
+        
+        normalized_weather  = self.process_weather_data()
+        data_dict = self.add_weather_to_datadict(data_dict, normalized_weather)
         return data_dict
-                        
+    
+    def process_weather_data(self):
+        parent_dir = os.path.dirname(self.file_path)
+        weather_file_path = os.path.join(parent_dir, 'weather_data.pkl')
+        
+        with open(weather_file_path, "rb") as f:
+            weather_df = pickle.load(f)
+            
+        # Filter and sort weather data
+        weather_subset = weather_df[weather_df['timepoint'].isin(self.used_timepoints)]
+        weather_subset = weather_subset.sort_values(
+            'timepoint', 
+            key=lambda x: pd.Categorical(x, categories=self.used_timepoints, ordered=True)
+        )
+        
+        # Normalize numerical features
+        weather_features = weather_subset.drop(columns=['timepoint']).values
+        return self.weather_scaler.fit_transform(weather_features)  # (num_timepoints, num_features)
+
+    def add_weather_to_datadict(self, data_dict, normalized_weather):
+        data_dict['weather'] = normalized_weather
+        return data_dict
                     
 
     def load_and_process(self, timepoint):
