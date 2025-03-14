@@ -109,29 +109,32 @@ def train_model(data_dict, weight_matrix, edge_index, edge_weights, results_outp
 
         # Compute losses on train and validation splits.
         train_loss = custom_loss(preds_all[train_idx], y_all[train_idx], args.loss_method)
-        val_loss = custom_loss(preds_all[val_idx], y_all[val_idx], args.loss_method)
 
         # Backward and optimization.
         train_loss.backward()
         optimizer.step()
-        scheduler.step(val_loss)
 
         # Evaluation on train, val, and test splits.
         model.eval()
         with torch.no_grad():
-            train_preds = model(veg_all, cwsi_all, irrigation_all, edge_index)[train_idx].squeeze().cpu().numpy()
-            val_preds   = model(veg_all, cwsi_all, irrigation_all, edge_index)[val_idx].squeeze().cpu().numpy()
-            test_preds  = model(veg_all, cwsi_all, irrigation_all, edge_index)[test_idx].squeeze().cpu().numpy()
+            preds_all_eval = model(veg_all, cwsi_all, irrigation_all, edge_index).squeeze()
+            
+            # Compute validation loss using the same custom_loss (in eval mode)
+            val_loss = custom_loss(preds_all_eval[val_idx], y_all[val_idx], args.loss_method)
+            
+            # Compute metrics
+            train_preds = preds_all_eval[train_idx].cpu().numpy()
+            val_preds = preds_all_eval[val_idx].cpu().numpy()
+            test_preds = preds_all_eval[test_idx].cpu().numpy()
+        
+            y_train_np = y_all[train_idx].cpu().numpy()
+            y_val_np = y_all[val_idx].cpu().numpy()
+            y_test_np = y_all[test_idx].cpu().numpy()
+            
 
-            y_train = data_dict['yield'][train_idx]
-            y_val   = data_dict['yield'][val_idx]
-            y_test  = data_dict['yield'][test_idx]
-
-            train_metrics = calculate_metrics(y_train, train_preds)
-            val_metrics = calculate_metrics(y_val, val_preds)
-            test_metrics = calculate_metrics(y_test, test_preds)
-
-            val_mse = val_metrics['mse']
+            train_metrics = calculate_metrics(y_train_np, train_preds)
+            val_metrics = calculate_metrics(y_val_np, val_preds)
+            test_metrics = calculate_metrics(y_test_np, test_preds)
 
             train_mse_list.append(train_metrics['mse'])
             val_mse_list.append(val_metrics['mse'])
@@ -139,6 +142,8 @@ def train_model(data_dict, weight_matrix, edge_index, edge_weights, results_outp
             train_r2_list.append(train_metrics['r2'])
             val_r2_list.append(val_metrics['r2'])
             test_r2_list.append(test_metrics['r2'])
+        
+        scheduler.step(val_loss)
 
         if epoch % 10 == 0 or epoch == args.epochs - 1:
             print(f"Epoch {epoch+1}/{args.epochs} | "
@@ -148,7 +153,7 @@ def train_model(data_dict, weight_matrix, edge_index, edge_weights, results_outp
                   f"Test MSE: {test_metrics['mse']:.4f} | Test R2: {test_metrics['r2']:.4f}")
 
         # Save the best model based on validation MSE.
-        if val_mse < best_val_mse:
+        if val_metrics['mse']  < best_val_mse:
             best_train_mse = train_metrics['mse']
             best_train_mae = train_metrics['mae']
             best_train_r2 = train_metrics['r2']
