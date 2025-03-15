@@ -143,7 +143,7 @@ class TSFN_Model(nn.Module):
 
         # Temporal component (LSTM) for processing time-varying features
         # LSTM output shape will be (batch_size, num_timepoints, 128)
-        self.lstm = nn.LSTM(input_size=16*5*5 + 8*5*5, hidden_size=128, num_layers=3, batch_first=True)
+        self.lstm = nn.LSTM(input_size=16*5*5 + 8*5*5, hidden_size=128, num_layers=2, batch_first=True)
         
         # Attention layer for weighting timepoints
         self.attention_layer = nn.Linear(128, 1)
