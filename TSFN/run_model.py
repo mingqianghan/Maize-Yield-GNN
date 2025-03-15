@@ -93,6 +93,7 @@ def train_model(data_dict, weight_matrix, edge_index, edge_weights, results_outp
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=args.lr_factor, patience=args.lr_patience)
 
     best_model_path = os.path.join(results_output_path, f'best_model_{args.seed}.pt')
+    best_attn_path = os.path.join(results_output_path, f'attention_weights_{args.seed}.npy')
     best_val_mse = float('inf')
     train_mse_list, val_mse_list, test_mse_list = [], [], []
     train_r2_list, val_r2_list, test_r2_list = [], [], []
@@ -179,11 +180,14 @@ def train_model(data_dict, weight_matrix, edge_index, edge_weights, results_outp
     print(f"Test  - MSE: {best_test_mse:.4f}, MAE: {best_test_mae:.4f}, R2: {best_test_r2:.4f}")
 
     # Reload the best model for final predictions.
-    model.load_state_dict(torch.load(best_model_path, map_location=DEVICE))
+    model.load_state_dict(torch.load(best_model_path, weights_only=True))
     model.eval()
     with torch.no_grad():
         best_preds_all = model(veg_all, cwsi_all, irrigation_all, edge_index).squeeze().cpu().numpy()
+        attn_weights = model.get_attention_weights(veg_all[test_idx], cwsi_all[test_idx])
 
+    np.save(best_attn_path, attn_weights)
+    
     predictions_file = os.path.join(results_output_path, f'predictions_{args.seed}.csv')
     save_best_model_predictions(data_dict, train_idx, val_idx, test_idx, best_preds_all, predictions_file)
 
@@ -200,7 +204,7 @@ def train_model(data_dict, weight_matrix, edge_index, edge_weights, results_outp
         f.write("TEST  Metrics | MSE: {:.4f}, MAE: {:.4f}, R2: {:.4f}\n".format(best_test_mse, best_test_mae, best_test_r2))
 
     try:
-        files_to_commit = [summary_txt, best_model_path, predictions_file]
+        files_to_commit = [summary_txt, best_model_path, best_attn_path, predictions_file]
         subprocess.check_call(["git", "add"] + files_to_commit)
         commit_message = "Record final results"
         subprocess.check_call(["git", "commit", "-m", commit_message])
