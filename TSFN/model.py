@@ -14,7 +14,7 @@ class TSFN_Model(nn.Module):
         self.irrigation_embed = nn.Embedding(num_embeddings=3, embedding_dim=16)
 
         # Temporal component (GRU) for processing time-varying features
-        self.gru = nn.GRU(input_size=16*5*5 + 8*5*5, hidden_size=64, num_layers=3, batch_first=True)
+        self.gru = nn.GRU(input_size=16*5*5 + 8*5*5, hidden_size=64, num_layers=2, batch_first=True)
         
         # Attention layer for weighting timepoints
         self.attention_layer = nn.Linear(64, 1)
@@ -73,7 +73,7 @@ class TSFN_Model(nn.Module):
         
         # Compute attention weights for each timepoint
         # energy: (batch_size, num_timepoints, 1)
-        energy = self.attention_layer(gru_out)
+        energy = self.attention_layer(torch.tanh(gru_out))
         
         # attention: (batch_size, num_timepoints, 1) after softmax over timepoints
         attention_weights = F.softmax(energy, dim=1)
@@ -119,6 +119,6 @@ class TSFN_Model(nn.Module):
         gru_out, _ = self.gru(combined_features)
         
         # Compute attention weights.
-        energy = self.attention_layer(gru_out)
+        energy = self.attention_layer(torch.tanh(gru_out))
         attention_weights = F.softmax(energy, dim=1)
         return attention_weights
