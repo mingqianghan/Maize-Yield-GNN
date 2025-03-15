@@ -92,7 +92,7 @@ def train_model(data_dict, weight_matrix, edge_index, edge_weights, results_outp
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     #scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=args.lr_factor, patience=args.lr_patience)
     #scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=30, eta_min=1e-6)
-    scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=0.0001, max_lr=0.01, step_size_up=20, mode="triangular2",  cycle_momentum=False)
+    scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=0.0008, max_lr=0.002, step_size_up=20, mode="triangular2",  cycle_momentum=False)
 
 
     best_model_path = os.path.join(results_output_path, f'best_model_{args.seed}.pt')
