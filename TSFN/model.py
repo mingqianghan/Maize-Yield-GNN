@@ -15,13 +15,13 @@ class TSFN_Model(nn.Module):
         self.irrigation_embed = nn.Embedding(num_embeddings=3, embedding_dim=16)
 
         # Temporal component (GRU) for processing time-varying features
-        self.gru = nn.GRU(input_size=16*5*5 + 8*5*5, hidden_size=128, num_layers=2, batch_first=True)
+        self.gru = nn.GRU(input_size=16*5*5 + 8*5*5, hidden_size=64, num_layers=2, batch_first=True)
         
         # Attention layer for weighting timepoints
-        self.attention_layer = nn.Linear(128, 1)
+        self.attention_layer = nn.Linear(64, 1)
         
         # GraphSAGE layers
-        self.sage1 = SAGEConv(128 + 16, 64, aggr='max')  # Input: LSTM output + irrigation embedding
+        self.sage1 = SAGEConv(64 + 16, 64, aggr='max')  # Input: LSTM output + irrigation embedding
         self.sage2 = SAGEConv(64, 32, aggr='max')
 
         # Final fully connected layer: maps 32 features to the target.
