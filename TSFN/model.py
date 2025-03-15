@@ -15,7 +15,7 @@ class TSFN_Model(nn.Module):
         self.irrigation_embed = nn.Embedding(num_embeddings=3, embedding_dim=16)
 
         # Temporal component (GRU) for processing time-varying features
-        self.gru = nn.GRU(input_size=16*5*5 + 8*5*5, hidden_size=128, num_layers=2, batch_first=True)
+        self.gru = nn.GRU(input_size=16*5*5 + 8*5*5, hidden_size=128, num_layers=3, batch_first=True)
         
         # Attention layer for weighting timepoints
         self.attention_layer = nn.Linear(128, 1)
