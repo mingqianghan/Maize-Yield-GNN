@@ -18,10 +18,11 @@ class TSFN_Model(nn.Module):
         self.gru = nn.GRU(input_size=16*5*5 + 8*5*5, hidden_size=128, num_layers=2, batch_first=True)
         
         # Attention layer for weighting timepoints
-        self.attention_layer = nn.Linear(128, 1)
+        self.attention_fc1 = nn.Linear(128, 64)
+        self.attention_fc2 = nn.Linear(64, 1)
         
         # GraphSAGE layers
-        self.sage1 = SAGEConv(128 + 16, 64, aggr='max')  # Input: LSTM output + irrigation embedding
+        self.sage1 = SAGEConv(64 + 16, 64, aggr='max')  # Input: LSTM output + irrigation embedding
         self.sage2 = SAGEConv(64, 32, aggr='max')
 
         # Final fully connected layer: maps 32 features to the target.
@@ -74,13 +75,13 @@ class TSFN_Model(nn.Module):
         
         # Compute attention weights for each timepoint
         # energy: (batch_size, num_timepoints, 1)
-        energy = self.attention_layer(gru_out)
-        
-        # attention: (batch_size, num_timepoints, 1) after softmax over timepoints
+        # energy = self.attention_layer(gru_out)
+        attn_hidden = torch.tanh(self.attention_fc1(gru_out))  # (batch_size, num_timepoints, 64)
+        energy = self.attention_fc2(attn_hidden)               # (batch_size, num_timepoints, 1)
         attention_weights = F.softmax(energy, dim=1)
-        # Context vector: weighted sum of GRU outputs (batch_size, 64)
-        context_vector = torch.sum(attention_weights * gru_out, dim=1)
-
+        context_vector = torch.sum(attention_weights * gru_out, dim=1)  # (batch_size, hidden_size)
+        
+     
         # Embed irrigation (static feature)
         irrigation = irrigation.squeeze().long()  # Ensure irrigation is a 1D tensor of indices
         irrigation_features = self.irrigation_embed(irrigation)  # Shape: (batch_size, 16)
@@ -119,8 +120,8 @@ class TSFN_Model(nn.Module):
         # Temporal processing with GRU.
         gru_out, _ = self.gru(combined_features)
         
-        # Compute attention weights.
-        energy = self.attention_layer(gru_out)
+        attn_hidden = torch.tanh(self.attention_fc1(gru_out))
+        energy = self.attention_fc2(attn_hidden)
         attention_weights = F.softmax(energy, dim=1)
         return attention_weights
     
