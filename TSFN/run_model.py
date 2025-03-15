@@ -118,6 +118,7 @@ def train_model(data_dict, weight_matrix, edge_index, edge_weights, results_outp
         # Backward and optimization.
         train_loss.backward()
         optimizer.step()
+        scheduler.step()
 
         # Evaluation on train, val, and test splits.
         model.eval()
@@ -148,7 +149,6 @@ def train_model(data_dict, weight_matrix, edge_index, edge_weights, results_outp
             val_r2_list.append(val_metrics['r2'])
             test_r2_list.append(test_metrics['r2'])
         
-        #scheduler.step(val_loss)
 
         if epoch % 10 == 0 or epoch == args.epochs - 1:
             print(f"Epoch {epoch+1}/{args.epochs} | "
