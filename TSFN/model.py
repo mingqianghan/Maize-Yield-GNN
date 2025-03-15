@@ -1,4 +1,3 @@
-'''
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -19,8 +18,7 @@ class TSFN_Model(nn.Module):
         self.gru = nn.GRU(input_size=16*5*5 + 8*5*5, hidden_size=128, num_layers=2, batch_first=True)
         
         # Attention layer for weighting timepoints
-        self.attention_fc1 = nn.Linear(128, 64)
-        self.attention_fc2 = nn.Linear(64, 1)
+        self.attention_layer = nn.Linear(128, 1)
         
         # GraphSAGE layers
         self.sage1 = SAGEConv(128 + 16, 64, aggr='max')  # Input: LSTM output + irrigation embedding
@@ -76,13 +74,13 @@ class TSFN_Model(nn.Module):
         
         # Compute attention weights for each timepoint
         # energy: (batch_size, num_timepoints, 1)
-        # energy = self.attention_layer(gru_out)
-        attn_hidden = torch.tanh(self.attention_fc1(gru_out))  # (batch_size, num_timepoints, 64)
-        energy = self.attention_fc2(attn_hidden)               # (batch_size, num_timepoints, 1)
-        attention_weights = F.softmax(energy, dim=1)
-        context_vector = torch.sum(attention_weights * gru_out, dim=1)  # (batch_size, hidden_size)
+        energy = self.attention_layer(gru_out)
         
-     
+        # attention: (batch_size, num_timepoints, 1) after softmax over timepoints
+        attention_weights = F.softmax(energy, dim=1)
+        # Context vector: weighted sum of GRU outputs (batch_size, 64)
+        context_vector = torch.sum(attention_weights * gru_out, dim=1)
+
         # Embed irrigation (static feature)
         irrigation = irrigation.squeeze().long()  # Ensure irrigation is a 1D tensor of indices
         irrigation_features = self.irrigation_embed(irrigation)  # Shape: (batch_size, 16)
@@ -121,132 +119,10 @@ class TSFN_Model(nn.Module):
         # Temporal processing with GRU.
         gru_out, _ = self.gru(combined_features)
         
-        attn_hidden = torch.tanh(self.attention_fc1(gru_out))
-        energy = self.attention_fc2(attn_hidden)
+        # Compute attention weights.
+        energy = self.attention_layer(gru_out)
         attention_weights = F.softmax(energy, dim=1)
         return attention_weights
-'''
-
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torch_geometric.nn.conv import SAGEConv
-import math
-
-class TSFN_Model(nn.Module):
-    def __init__(self):
-        super().__init__()
-        # CNN Feature Extractors for vegetation and CWSI
-        self.veg_cnn = self._create_cnn(in_channels=5, out_channels=16)  # Input: 5 channels, Output: 16 channels
-        self.cwsi_cnn = self._create_cnn(in_channels=1, out_channels=8)   # Input: 1 channel, Output: 8 channels
-
-        # Embedding for irrigation (static feature)
-        self.irrigation_embed = nn.Embedding(num_embeddings=3, embedding_dim=16)
-
-        # Temporal component (GRU) for processing time-varying features
-        # GRU output shape: (batch_size, num_timepoints, 128)
-        self.gru = nn.GRU(input_size=16*5*5 + 8*5*5, hidden_size=128, num_layers=2, batch_first=True)
-        
-        # Learnable query vector for Scaled Dot-Product Attention
-        self.attn_query = nn.Parameter(torch.randn(1, 128))  # shape: (1, 128)
-
-        # GraphSAGE layers: combined dimension is GRU context (128) + irrigation (16) = 144
-        self.sage1 = SAGEConv(128 + 16, 64, aggr='max')
-        self.sage2 = SAGEConv(64, 32, aggr='max')
-
-        # Final fully connected layer: maps 32 features to the target.
-        self.fc = nn.Linear(32, 1)
-
-    def _create_cnn(self, in_channels, out_channels):
-        return nn.Sequential(
-            nn.Conv2d(in_channels, 16, 3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(2),
-            nn.Conv2d(16, out_channels, 3, padding=1),
-            nn.ReLU(),
-            nn.AdaptiveAvgPool2d((5, 5))
-        )
-
-    def forward(self, veg, cwsi, irrigation, edge_index):
-        # veg: (batch_size, num_timepoints, channels, height, width)
-        # cwsi: (batch_size, num_timepoints, channels, height, width)
-        # irrigation: (batch_size, 1)
-        batch_size, num_timepoints, _, _, _ = veg.shape
-
-        # Process each timepoint through the CNNs.
-        veg_features = []
-        cwsi_features = []
-        for t in range(num_timepoints):
-            veg_t = veg[:, t, :, :, :]    # (batch_size, channels, height, width)
-            cwsi_t = cwsi[:, t, :, :, :]    # (batch_size, channels, height, width)
-            veg_features_t = self.veg_cnn(veg_t).flatten(1)  # (batch_size, 16*5*5)
-            cwsi_features_t = self.cwsi_cnn(cwsi_t).flatten(1)  # (batch_size, 8*5*5)
-            veg_features.append(veg_features_t)
-            cwsi_features.append(cwsi_features_t)
-        veg_features = torch.stack(veg_features, dim=1)  # (batch_size, num_timepoints, 16*5*5)
-        cwsi_features = torch.stack(cwsi_features, dim=1)  # (batch_size, num_timepoints, 8*5*5)
-        combined_features = torch.cat([veg_features, cwsi_features], dim=2)  # (batch_size, num_timepoints, combined_dim)
-
-        # Temporal processing with GRU
-        gru_out, _ = self.gru(combined_features)  # (batch_size, num_timepoints, 128)
-
-        # Scaled Dot-Product Attention:
-        # Expand the learnable query to shape (batch_size, 1, 128)
-        query = self.attn_query.expand(batch_size, 1, 128)  # (batch_size, 1, 128)
-        # Compute dot products between query and keys (GRU outputs)
-        # keys: (batch_size, num_timepoints, 128), so we transpose last two dims for matmul.
-        scores = torch.bmm(query, gru_out.transpose(1, 2))  # (batch_size, 1, num_timepoints)
-        # Scale scores
-        scores = scores / math.sqrt(128)
-        # Softmax over time dimension to obtain attention weights.
-        attn_weights = F.softmax(scores, dim=-1)  # (batch_size, 1, num_timepoints)
-        # Compute context vector: weighted sum of GRU outputs.
-        context_vector = torch.bmm(attn_weights, gru_out)  # (batch_size, 1, 128)
-        context_vector = context_vector.squeeze(1)  # (batch_size, 128)
-
-        # Process irrigation (static feature)
-        irrigation = irrigation.squeeze().long()  # (batch_size,)
-        irrigation_features = self.irrigation_embed(irrigation)  # (batch_size, 16)
-
-        # Combine context vector with irrigation features.
-        combined = torch.cat([context_vector, irrigation_features], dim=1)  # (batch_size, 144)
-
-        # GraphSAGE layers.
-        x1 = F.relu(self.sage1(combined, edge_index))  # (batch_size, 64)
-        x_final = F.relu(self.sage2(x1, edge_index))     # (batch_size, 32)
-
-        # Final prediction.
-        return self.fc(x_final)  # (batch_size, 1)
-
-    def get_attention_weights(self, veg, cwsi):
-        """
-        Compute and return the attention weights from the Scaled Dot-Product Attention.
-        Returns: tensor of shape (batch_size, num_timepoints)
-        """
-        batch_size, num_timepoints, _, _, _ = veg.shape
-
-        # Process each timepoint through the CNNs.
-        veg_features = []
-        cwsi_features = []
-        for t in range(num_timepoints):
-            veg_t = veg[:, t, :, :, :]
-            cwsi_t = cwsi[:, t, :, :, :]
-            veg_features_t = self.veg_cnn(veg_t).flatten(1)
-            cwsi_features_t = self.cwsi_cnn(cwsi_t).flatten(1)
-            veg_features.append(veg_features_t)
-            cwsi_features.append(cwsi_features_t)
-        veg_features = torch.stack(veg_features, dim=1)
-        cwsi_features = torch.stack(cwsi_features, dim=1)
-        combined_features = torch.cat([veg_features, cwsi_features], dim=2)
-
-        # Process with GRU.
-        gru_out, _ = self.gru(combined_features)  # (batch_size, num_timepoints, 128)
-        batch_size = gru_out.size(0)
-        query = self.attn_query.expand(batch_size, 1, 128)  # (batch_size, 1, 128)
-        scores = torch.bmm(query, gru_out.transpose(1, 2))  # (batch_size, 1, num_timepoints)
-        scores = scores / math.sqrt(128)
-        attn_weights = F.softmax(scores, dim=-1)  # (batch_size, 1, num_timepoints)
-        return attn_weights.squeeze(1)  # (batch_size, num_timepoints)
-
+    
     
     
