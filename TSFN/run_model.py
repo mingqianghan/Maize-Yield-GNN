@@ -90,7 +90,8 @@ def train_model(data_dict, weight_matrix, edge_index, edge_weights, results_outp
     # ----------------------------------------------------------
     model = TSFN_Model().to(DEVICE)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=args.lr_factor, patience=args.lr_patience)
+    #scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=args.lr_factor, patience=args.lr_patience)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=10, T_mult=2, eta_min=1e-6)
 
     best_model_path = os.path.join(results_output_path, f'best_model_{args.seed}.pt')
     best_attn_path = os.path.join(results_output_path, f'attention_weights_{args.seed}.npy')
