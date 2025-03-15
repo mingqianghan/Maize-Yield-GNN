@@ -22,7 +22,7 @@ class TSFN_Model(nn.Module):
         self.attention_fc2 = nn.Linear(64, 1)
         
         # GraphSAGE layers
-        self.sage1 = SAGEConv(64 + 16, 64, aggr='max')  # Input: LSTM output + irrigation embedding
+        self.sage1 = SAGEConv(128 + 16, 64, aggr='max')  # Input: LSTM output + irrigation embedding
         self.sage2 = SAGEConv(64, 32, aggr='max')
 
         # Final fully connected layer: maps 32 features to the target.
