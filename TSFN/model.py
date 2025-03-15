@@ -14,10 +14,11 @@ class TSFN_Model(nn.Module):
         # Embedding for irrigation (static feature)
         self.irrigation_embed = nn.Embedding(num_embeddings=3, embedding_dim=16)
 
-        # Temporal component (LSTM) for processing time-varying features
-        # self.temporal = nn.LSTM(input_size=16*5*5 + 8*5*5, hidden_size=64, num_layers=2, batch_first=True)
         # Temporal component (GRU) for processing time-varying features
         self.gru = nn.GRU(input_size=16*5*5 + 8*5*5, hidden_size=64, num_layers=2, batch_first=True)
+        
+        # Attention layer for weighting timepoints
+        self.attention_layer = nn.Linear(64, 1)
         
         # GraphSAGE layers
         self.sage1 = SAGEConv(64 + 16, 64, aggr='max')  # Input: LSTM output + irrigation embedding
@@ -69,14 +70,23 @@ class TSFN_Model(nn.Module):
 
         # Temporal processing with GRU
         gru_out, _ = self.gru(combined_features)  # Shape: (batch_size, num_timepoints, 64)
-        temporal_out = gru_out[:, -1, :]  # Use the last time step's output (batch_size, 64)
+        # temporal_out = gru_out[:, -1, :]  # Use the last time step's output (batch_size, 64)
+        
+        # Compute attention weights for each timepoint
+        # energy: (batch_size, num_timepoints, 1)
+        energy = self.attention_layer(gru_out)
+        
+        # attention: (batch_size, num_timepoints, 1) after softmax over timepoints
+        attention_weights = F.softmax(energy, dim=1)
+        # Context vector: weighted sum of GRU outputs (batch_size, 64)
+        context_vector = torch.sum(attention_weights * gru_out, dim=1)
 
         # Embed irrigation (static feature)
         irrigation = irrigation.squeeze().long()  # Ensure irrigation is a 1D tensor of indices
         irrigation_features = self.irrigation_embed(irrigation)  # Shape: (batch_size, 16)
 
         # Combine temporal output with irrigation features
-        combined = torch.cat([temporal_out, irrigation_features], dim=1)  # Shape: (batch_size, 64 + 16)
+        combined = torch.cat([context_vector, irrigation_features], dim=1)  # Shape: (batch_size, 64 + 16)
 
         # GraphSAGE layers process the combined features.
         x1 = F.relu(self.sage1(combined, edge_index))  # Output: (batch_size, 64)
