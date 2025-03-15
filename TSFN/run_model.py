@@ -186,7 +186,7 @@ def train_model(data_dict, weight_matrix, edge_index, edge_weights, results_outp
         best_preds_all = model(veg_all, cwsi_all, irrigation_all, edge_index).squeeze().cpu().numpy()
         attn_weights = model.get_attention_weights(veg_all[test_idx], cwsi_all[test_idx])
 
-    np.save(best_attn_path, attn_weights)
+    np.save(best_attn_path, attn_weights.cpu().detach().numpy())
     
     predictions_file = os.path.join(results_output_path, f'predictions_{args.seed}.csv')
     save_best_model_predictions(data_dict, train_idx, val_idx, test_idx, best_preds_all, predictions_file)
